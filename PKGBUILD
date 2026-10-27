@@ -1,6 +1,6 @@
 # Maintainer: friedpuppet <friedpuppet@pm.me>
 pkgname=meter-ocr
-pkgver=0.1.0
+pkgver=0.1.1
 pkgrel=1
 pkgdesc="Reads water-meter photos (wheels + serial) with local Ollama models for Home Assistant, only while the host is idle"
 arch=('any')

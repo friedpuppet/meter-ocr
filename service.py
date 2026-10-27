@@ -2,14 +2,15 @@
 
 HA decides when to ask; this service only answers. Ollama stays on localhost; only this port needs to be open to HA.
   GET  /status       {"ready", "reason", "idle_min", "job"}
-  POST /batch        multipart photos -> 202 {"id"}; 503 {"reason"} when the host is busy; 409 while a batch runs
+  POST /batch        multipart photos -> 202 {"id"}; 503 {"reason"} when the host is busy; 409 while a batch runs.
+                     ?force=1 reads even when the host is busy (a person pressed a button); 409 still applies
   GET  /batch/<id>   {"state": "running"|"done"|"failed", "results": [...], "seconds", "error"}
 Every request needs "Authorization: Bearer <token>".
 Settings: /etc/meter-ocr/config.json ($METER_OCR_CONFIG). The token is generated on first start into
 /var/lib/meter-ocr/token ($METER_OCR_STATE is the directory) unless the config sets one.
 """
 import collections, email.parser, email.policy, glob, hmac, json, os, secrets, shutil, sys, tempfile, threading, time
-import urllib.request
+import urllib.parse, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 CONFIG = os.environ.get("METER_OCR_CONFIG", "/etc/meter-ocr/config.json")
@@ -196,12 +197,15 @@ def handler(cfg, load, jobs):
         def do_POST(self):
             if not self._authorised():
                 return
-            if self.path != "/batch":
+            url = urllib.parse.urlsplit(self.path)
+            if url.path != "/batch":
                 return self._send(404, {"error": "not found"})
             if jobs.running:
                 return self._send(409, {"reason": "уже читаю інший пакет", "id": jobs.running})
+            # ?force=1: read now even if the host isn't idle (a person asked for it); a running batch still wins
+            force = urllib.parse.parse_qs(url.query).get("force", ["0"])[0].lower() in ("1", "true", "yes")
             ready, reason, _ = load.state()
-            if not ready:
+            if not ready and not force:
                 return self._send(503, {"reason": reason})
             length = int(self.headers.get("Content-Length", 0))
             msg = email.parser.BytesParser(policy=email.policy.HTTP).parsebytes(
@@ -223,7 +227,7 @@ def handler(cfg, load, jobs):
             if jid is None:
                 shutil.rmtree(tmp, ignore_errors=True)
                 return self._send(409, {"reason": "уже читаю інший пакет", "id": jobs.running})
-            self._send(202, {"id": jid, "photos": len(photos)})
+            self._send(202, {"id": jid, "photos": len(photos), "forced": force and not ready})
 
         def log_message(self, fmt, *args):
             print(f"{self.address_string()} {fmt % args}", flush=True)

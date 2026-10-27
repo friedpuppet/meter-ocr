@@ -33,6 +33,7 @@ Every request needs `Authorization: Bearer <token>`.
 |---|---|
 | `GET /status` | `{"ready": bool, "reason": "...", "idle_min": 7.5, "job": null}` |
 | `POST /batch` (multipart, one or more photos) | `202 {"id"}`. Not idle: `503 {"reason"}`. A batch is running: `409` |
+| `POST /batch?force=1` | the same, but reads even when the host isn't idle: for a person pressing «read now». `409` still applies |
 | `GET /batch/<id>` | `{"state": "running"\|"done"\|"failed", "results": [...], "seconds"}` |
 
 **Ready** means GPU (`gpu_busy_percent`) and CPU have both been under their limits (30 %) for the last 10 minutes,
