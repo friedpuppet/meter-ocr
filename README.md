@@ -66,13 +66,14 @@ a small custom pacman repository on the target host. Install and upgrade are the
 ```
 
 This clones (or updates) this repository from GitHub into `~/meter-ocr-src`, builds the package with `makepkg`
-and adds it to `/srv/pacman-repo/meter-ocr/`. That directory must be writable by the user. Then, once, add to
-`/etc/pacman.conf`:
+and adds it to the local pacman repository `/srv/pacman-repo/friedpuppet/` (a second argument picks another
+path; the repository is named after its last part). That directory must be writable by the user. Then, once,
+add to `/etc/pacman.conf`:
 
 ```
-[meter-ocr]
+[friedpuppet]
 SigLevel = Optional TrustAll
-Server = file:///srv/pacman-repo/meter-ocr
+Server = file:///srv/pacman-repo/friedpuppet
 ```
 
 and install:

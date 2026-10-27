@@ -13,8 +13,8 @@ if [ -z "${1:-}" ]; then
 fi
 
 TARGET="$1"
-REPO_PATH="${2:-/srv/pacman-repo/meter-ocr}"
-REPO_NAME="meter-ocr"
+REPO_PATH="${2:-/srv/pacman-repo/friedpuppet}"
+REPO_NAME="$(basename "$REPO_PATH")"  # a general personal repo; other packages can be published into it too
 SRC_URL="https://github.com/friedpuppet/meter-ocr.git"
 
 runner=(ssh "$TARGET" bash -s --)
