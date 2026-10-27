@@ -1,0 +1,24 @@
+post_install() {
+    # The sysusers hook runs after the transaction; the service needs its user now.
+    systemd-sysusers meter-ocr.conf
+    systemctl daemon-reload
+    systemctl enable --now meter-ocr.service
+
+    cat <<MSG
+==> meter-ocr installed and started (meter-ocr.service enabled).
+==> First start pulls the Ollama models it needs (qwen3-vl:8b-instruct, glm-ocr): see journalctl -u meter-ocr.
+==> Token for Home Assistant: sudo cat /var/lib/meter-ocr/token
+==> Open port 8765 to the Home Assistant host only, e.g.:
+==>     sudo ufw allow from <HA address> to any port 8765 proto tcp
+MSG
+}
+
+post_upgrade() {
+    systemctl daemon-reload
+    systemctl restart meter-ocr.service
+    echo "==> meter-ocr updated and restarted."
+}
+
+pre_remove() {
+    systemctl disable --now meter-ocr.service || true
+}

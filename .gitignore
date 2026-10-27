@@ -1,0 +1,10 @@
+# Python
+__pycache__/
+*.pyc
+
+# makepkg build artifacts (from running makepkg directly in this directory)
+pkg/
+src/
+*.pkg.tar.*
+*.log
+.SRCINFO
