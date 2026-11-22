@@ -32,7 +32,7 @@ Every request needs `Authorization: Bearer <token>`.
 | Request | Answer |
 |---|---|
 | `GET /status` | `{"ready": bool, "reason": "...", "idle_min": 7.5, "job": null}` |
-| `POST /batch` (multipart, one or more photos) | `202 {"id"}`. Not idle: `503 {"reason"}`. A batch is running: `409` |
+| `POST /batch` (multipart, one or more photos; `?force=1` reads even when the PC is busy) | `202 {"id", "photos", "forced"}`. Not idle: `503 {"reason"}`. A batch is running: `409` |
 | `POST /batch?force=1` | the same, but reads even when the host isn't idle: for a person pressing «read now». `409` still applies |
 | `GET /batch/<id>` | `{"state": "running"\|"done"\|"failed", "results": [...], "seconds", "error"}` |
 
@@ -56,8 +56,9 @@ A batch of 4 photos takes about 30 s on a Radeon RX 9070 XT.
 - `locate.py`, `crop.py`, `read.py`, `combine.py`: the steps. Each also runs on its own, writing to
   `~/.cache/meter-ocr` (`$METER_OCR_CACHE`), for tuning against your own photos.
 - `common.py`: shared helpers.
-- `/etc/meter-ocr/config.json`: listen address/port, `gpu_max`, `cpu_max`, `idle_minutes`, `sample_seconds`,
-  `keep_alive`. It is in `backup=()`, so local edits survive upgrades.
+- `/etc/meter-ocr/config.json`: `listen`/`port`, `gpu_max`, `cpu_max`, `idle_minutes`, `sample_seconds`,
+  `keep_alive`, `gpu_busy` (the `gpu_busy_percent` file; found on its own for amdgpu), `token` (set one instead of the
+  generated file), `max_photos` (per batch, 20), `jobs_kept` (finished batches kept for `GET /batch/<id>`, 20). It is in `backup=()`, so local edits survive upgrades.
 - `/var/lib/meter-ocr/token`: generated on first start (mode 600, user `meter-ocr`). Give it to Home Assistant.
 - `meter-ocr.service`: runs as the system user `meter-ocr` (sysusers.d), sandboxed (`ProtectSystem=strict`,
   `ProtectHome`, `PrivateTmp`).
