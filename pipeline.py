@@ -10,6 +10,7 @@ import cv2
 import numpy as np
 from PIL import Image
 from combine import wheels
+from common import OllamaError
 from crop import PADS, crops
 from locate import locate
 from read import read_widening
@@ -27,6 +28,8 @@ def recognize(photos, log=print):
             item["crops"] = crops(cv2.cvtColor(dial, cv2.COLOR_RGB2BGR), loc) if dial is not None else None
             if item["crops"] is None:
                 item["note"] = "не знайдено вікно з колесами"
+        except OllamaError:  # a fault of this host: the whole batch fails, HA keeps the photos queued
+            raise
         except Exception as e:  # one bad photo must not sink the batch
             item["crops"], item["note"] = None, f"помилка пошуку: {e!r}"
         items.append(item)

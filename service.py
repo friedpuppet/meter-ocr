@@ -5,6 +5,7 @@ HA decides when to ask; this service only answers. Ollama stays on localhost; on
   POST /batch        multipart photos -> 202 {"id"}; 503 {"reason"} when the host is busy; 409 while a batch runs.
                      ?force=1 reads even when the host is busy (a person pressed a button); 409 still applies
   GET  /batch/<id>   {"state": "running"|"done"|"failed", "results": [...], "seconds", "error"}
+                     failed: Ollama didn't answer or erred (a host fault, the photos are fine: send them again later)
 Every request needs "Authorization: Bearer <token>".
 Settings: /etc/meter-ocr/config.json ($METER_OCR_CONFIG). The token is generated on first start into
 /var/lib/meter-ocr/token ($METER_OCR_STATE is the directory) unless the config sets one.
@@ -156,7 +157,7 @@ class Jobs:
             job["results"] = recognize(photos, log=lambda m: print(f"[{jid}] {m}", flush=True))
             job["state"] = "done"
         except Exception as e:
-            job["state"], job["error"] = "failed", repr(e)
+            job["state"], job["error"] = "failed", f"{type(e).__name__}: {e}"
             print(f"[{jid}] failed: {e!r}", file=sys.stderr, flush=True)
         finally:
             job["seconds"] = round(time.time() - job["started"], 1)

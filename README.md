@@ -34,7 +34,12 @@ Every request needs `Authorization: Bearer <token>`.
 | `GET /status` | `{"ready": bool, "reason": "...", "idle_min": 7.5, "job": null}` |
 | `POST /batch` (multipart, one or more photos) | `202 {"id"}`. Not idle: `503 {"reason"}`. A batch is running: `409` |
 | `POST /batch?force=1` | the same, but reads even when the host isn't idle: for a person pressing «read now». `409` still applies |
-| `GET /batch/<id>` | `{"state": "running"\|"done"\|"failed", "results": [...], "seconds"}` |
+| `GET /batch/<id>` | `{"state": "running"\|"done"\|"failed", "results": [...], "seconds", "error"}` |
+
+`done` means every photo was looked at. A photo the models couldn't make out keeps its `?` wheels and a `note`; HA
+treats it as one to retake. `failed` means the host failed, not a photo: Ollama didn't answer or answered with an
+error. Each Ollama call is retried after 15 s and again after 60 s before the batch fails. The caller should keep the
+photos and send them again later.
 
 **Ready** means GPU (`gpu_busy_percent`) and CPU have both been under their limits (30 %) for the last 10 minutes,
 sampled every 10 s.

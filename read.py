@@ -4,11 +4,11 @@ Models: glm-ocr / qwen3-vl via Ollama (token logprobs give the probability), tes
 Filters (combine with '+'): none, invert, auto, up2, up3, sharp, gray, minch.
 Output: <cache>/read/<model>__<filters>/<name>.json
 """
-import argparse, base64, io, json, math, os, subprocess, sys, tempfile, time, urllib.request
+import argparse, base64, io, json, math, os, subprocess, sys, tempfile, time
 import numpy as np
 from PIL import Image, ImageFilter, ImageOps
 import common
-from common import CACHE, OLLAMA, cache_path
+from common import CACHE, cache_path
 from crop import PADS, PART_PADS
 
 PROMPTS = {
@@ -56,9 +56,7 @@ def ollama(model, prompt, img):
     body = {"model": model, "stream": False, "keep_alive": common.KEEP_ALIVE, "logprobs": True, "top_logprobs": 3,
             "options": {"temperature": 0, "num_predict": 60},
             "messages": [{"role": "user", "content": prompt, "images": [png64(img)]}]}
-    req = urllib.request.Request(OLLAMA, json.dumps(body).encode(), {"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=600) as r:
-        res = json.loads(r.read())
+    res = common.post(body)
     digits = []
     for t in res.get("logprobs") or []:
         p = math.exp(t["logprob"])

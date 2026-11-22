@@ -2,7 +2,7 @@
 
 Only Ollama is contacted (http://localhost:11434 unless $METER_OCR_OLLAMA says otherwise); photos never leave the host.
 """
-import base64, io, json, os, time, urllib.request
+import base64, io, json, os, time, urllib.error, urllib.request
 import numpy as np
 from PIL import Image, ImageOps
 
@@ -12,6 +12,34 @@ OLLAMA = os.environ.get("METER_OCR_OLLAMA", "http://localhost:11434").rstrip("/"
 CACHE = os.environ.get("METER_OCR_CACHE") or os.path.expanduser("~/.cache/meter-ocr")
 LOCATOR = "qwen3-vl:8b-instruct"
 KEEP_ALIVE = "30m"  # how long Ollama keeps a model loaded after a call; the service sets it short
+# Waits before each retry of a failed Ollama call: a model load that crashed or a restarting Ollama often comes
+# back in seconds, and one later try covers a slower recovery. Keep the sum well inside HA's 10-min wait.
+RETRY_DELAYS = (15, 60)
+
+
+class OllamaError(Exception):
+    """Ollama didn't answer or answered with an HTTP error: a fault of this host, not of the photo."""
+
+
+def post(body, timeout=600, log=print):
+    """POST one /api/chat request; returns the parsed answer. Retries server errors and lost connections,
+    raises OllamaError when all tries fail (or at once on a 4xx: a wrong request doesn't heal)."""
+    req = urllib.request.Request(OLLAMA, json.dumps(body).encode(), {"Content-Type": "application/json"})
+    for i, wait in enumerate((*RETRY_DELAYS, None)):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode(errors="replace")[:300]
+            err = OllamaError(f"Ollama {e.code}: {detail or e.reason}")
+            if e.code < 500:
+                raise err from e
+        except (urllib.error.URLError, OSError) as e:  # refused, reset, timed out
+            err = OllamaError(f"Ollama не відповідає: {getattr(e, 'reason', e)}")
+        if wait is None:
+            raise err
+        log(f"{body['model']}: {err}; повтор через {wait} с")
+        time.sleep(wait)
 
 
 def load_rgb(path):
@@ -36,10 +64,8 @@ def chat(model, prompt, images, fmt=None, num_predict=200, keep_alive=None):
             "messages": [{"role": "user", "content": prompt, "images": images}]}
     if fmt is not None:
         body["format"] = fmt
-    req = urllib.request.Request(OLLAMA, json.dumps(body).encode(), {"Content-Type": "application/json"})
     t0 = time.time()
-    with urllib.request.urlopen(req, timeout=600) as r:
-        text = json.loads(r.read())["message"]["content"]
+    text = post(body)["message"]["content"]
     return text, time.time() - t0
 
 
